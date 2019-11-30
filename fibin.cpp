@@ -10,21 +10,27 @@ class Value {
 };
 
 template<unsigned int N>
-struct Fibo {
-    enum{ val = fibs[N] };
+class Fibo {
+    public:
+    static constexpr unsigned int val = fibs[N];
 };
-
-template< typename T >
-unsigned int eval() {
-    return T::val;
-}
+    
+template< typename Number >
+class Fibin {
+    public:
+    
+    template< typename T >
+    static constexpr Number eval() {
+        return T::val;
+    }
+};
 
 #include <stdio.h>
 
 int main() {
-    printf("%d\n", eval< Fibo<0> >() );
-    printf("%d\n", eval< Fibo<2> >() );
-    printf("%d\n", eval< Fibo<5> >() );
+    printf("%d\n", Fibin<unsigned int>::eval< Fibo<0> >() );
+    printf("%d\n", Fibin<unsigned int>::eval< Fibo<3> >() );
+    printf("%d\n", Fibin<unsigned int>::eval< Fibo<5> >() );
     return 0;
 }
 
