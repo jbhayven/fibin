@@ -9,21 +9,22 @@ class Value {
     unsigned int a = N;
 };
 
-template<int N>
-class Fibo {
-    public:
-    unsigned int a = fibs[N];
+template<unsigned int N>
+struct Fibo {
+    enum{ val = fibs[N] };
 };
 
-template< template<unsigned int U> Fibo<U> f  >
+template< typename T >
 unsigned int eval() {
-    return f;
+    return T::val;
 }
 
 #include <stdio.h>
 
 int main() {
     printf("%d\n", eval< Fibo<0> >() );
+    printf("%d\n", eval< Fibo<2> >() );
+    printf("%d\n", eval< Fibo<5> >() );
     return 0;
 }
 
