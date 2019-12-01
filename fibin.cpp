@@ -98,6 +98,7 @@ class Fibin {
     static constexpr Number eval() {
         return T::val;
     }
+    
 };
 #include <stdio.h>
 
@@ -107,6 +108,8 @@ int main() {
     printf("%d\n", Fibin<unsigned int>::eval< Fibo<5> >() );
     
     printf("%d\n", Fibin<unsigned int>::eval< Lit<Fibo<6> > > () );
+    
+    printf("%d\n", Fibin<unsigned int>::eval< If< Lit<True>, Fibo<1>, Fibo<2> > >() );
     
     //printf("%d\n", Fibin<unsigned int>::eval< Lit<int> > () );
     
