@@ -24,13 +24,6 @@ template<> struct Lit<False> {
 template<unsigned int U> struct Lit< Fibo<U> > {
     enum { val = Fibo<U>::val };
 };
-
-template<unsigned int N>
-class Value {
-    public:
-    unsigned int a = N;
-};
-
     
 template< typename Number >
 class Fibin {
