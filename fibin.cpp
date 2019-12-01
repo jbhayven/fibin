@@ -1,7 +1,21 @@
-constexpr int fibs[] = {0, 1, 1, 2, 3, 5, 8, 13, 21, 34};
-
 class True{};
 class False{};
+
+template<unsigned int N> struct Fibo {
+    enum {
+        val = Fibo<N-1>::val+Fibo<N-2>::val
+    };
+};
+template<> struct Fibo<0> {
+    enum {
+        val = 0
+    };
+};
+template<> struct Fibo<1> {
+    enum {
+        val = 1
+    };
+};
 
 template<unsigned int N>
 class Value {
@@ -9,11 +23,6 @@ class Value {
     unsigned int a = N;
 };
 
-template<unsigned int N>
-class Fibo {
-    public:
-    static constexpr unsigned int val = fibs[N];
-};
     
 template< typename Number >
 class Fibin {
