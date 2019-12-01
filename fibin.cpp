@@ -9,8 +9,21 @@ template<> struct Fibo<1> {
 };
 
 ////////////////////
-class True {};
-class False {};
+struct True {};
+struct False {};
+
+template<typename Condition, typename IfTrue, typename IfFalse> 
+struct If {};
+
+template<typename IfTrue, typename IfFalse>
+struct If<True, IfTrue, IfFalse> {
+    using value = IfTrue;
+};
+
+template<typename IfTrue, typename IfFalse>
+struct If<False, IfTrue, IfFalse> {
+    using value = IfFalse;
+};
 
 template<typename T> struct Lit { };
 
