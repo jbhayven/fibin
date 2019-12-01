@@ -7,37 +7,31 @@ template<> struct Fibo<0> {
 template<> struct Fibo<1> {
     enum { val = 1 };
 };
-
 ////////////////////
+
 struct True {};
 struct False {};
-
-template<typename Condition, typename IfTrue, typename IfFalse> 
-struct If {};
-
-template<typename IfTrue, typename IfFalse>
-struct If<True, IfTrue, IfFalse> {
-    using value = IfTrue;
-};
-
-template<typename IfTrue, typename IfFalse>
-struct If<False, IfTrue, IfFalse> {
-    using value = IfFalse;
-};
 
 template<typename T> struct Lit { };
 
 template<> struct Lit<True> { 
-    enum { logical = 1 };
+    enum { val = 1 };
 };
 
 template<> struct Lit<False> {
-    enum { logical = 0 };
+    enum { val = 0 };
 };
 
 template<unsigned int U> struct Lit< Fibo<U> > {
     enum { val = Fibo<U>::val };
 };
+
+////////////////////
+template<typename Condition, typename IfTrue, typename IfFalse> 
+struct If {
+    enum { val = Condition::val ? IfTrue::val : IfFalse::val }; 
+};
+
 ////////////////////
 
 constexpr int Var(const char *name) {
@@ -109,7 +103,17 @@ int main() {
     
     printf("%d\n", Fibin<unsigned int>::eval< Lit<Fibo<6> > > () );
     
-    printf("%d\n", Fibin<unsigned int>::eval< If< Lit<True>, Fibo<1>, Fibo<2> > >() );
+    printf("%d\n", Fibin<unsigned int>::eval< 
+    If< 
+        If< 
+            Lit<True>, 
+            Lit<False>,
+            Lit<True>
+        >, 
+        Fibo<10>, 
+        Fibo<2> 
+    > 
+    >() );
     
     //printf("%d\n", Fibin<unsigned int>::eval< Lit<int> > () );
     
