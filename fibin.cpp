@@ -1,5 +1,30 @@
 #include <cstdint>
 
+#define NO_VARIABLE 0
+using VarID = uint32_t;
+
+template<VarID id, typename Value> 
+struct Variable { };
+
+////////////////////
+
+template<typename T, T _value>
+struct Value{ 
+    static constexpr T value = _value;
+};
+
+////////////////////
+
+template<VarID id, typename T, typename... context>
+struct Function { };
+
+template<typename T, typename... context> 
+struct Function<NO_VARIABLE, T, context...>{
+    static constexpr auto value = T::value;
+}
+
+////////////////////
+
 template<unsigned int N, typename T> 
 struct Fib_eval {
     static constexpr T val = Fib_eval<N-1, T>::val + Fib_eval<N-2, T>::val;
@@ -25,7 +50,7 @@ struct Lit { };
 
 template<typename... context> 
 struct Lit<True, context...> { 
-    static constexpr bool val = true;
+    using fun = Function<-1, 
 };
 
 template<typename... context> 
@@ -41,15 +66,15 @@ struct Lit< Fib<U>, T, context... > {
 ////////////////////
 
 template<typename T, typename... context>
-struct evaluate {};
+struct expr_evaluate {};
 
 template< typename... Targs, template<typename...> typename T, typename... context >
-struct evaluate<T<Targs...>, context...> {
+struct expr_evaluate<T<Targs...>, context...> {
     static constexpr auto val = T<Targs..., context...>::val;
 };
 
 template< int i, typename... Targs, template<int, typename...> typename T, typename... context >
-struct evaluate<T<i, Targs...>, context...> {
+struct expr_evaluate<T<i, Targs...>, context...> {
     static constexpr auto val = T<i, Targs..., context...>::val;
 };
 
@@ -58,9 +83,9 @@ struct evaluate<T<i, Targs...>, context...> {
 template<typename Condition, typename IfTrue, typename IfFalse, typename... context> 
 struct If {
     static constexpr auto val = 
-        evaluate <Condition, context...>::val ?
-        evaluate <IfTrue, context...>::val :
-        evaluate <IfFalse, context...>::val;
+        expr_evaluate <Condition, context...>::val ?
+        expr_evaluate <IfTrue, context...>::val :
+        expr_evaluate <IfFalse, context...>::val;
 };
 
 ////////////////////
@@ -68,22 +93,15 @@ struct If {
 template<typename Left, typename Right, typename... context>
 struct Eq {
     static constexpr bool val = 
-        (evaluate<Left, context...>::val == evaluate<Right, context...>::val);
+        (expr_evaluate<Left, context...>::val == expr_evaluate<Right, context...>::val);
 };
-
-////////////////////
-
-using VarID = uint32_t;
-
-template<VarID id, typename Value> 
-struct Variable { };
 
 ////////////////////
 
 template <VarID Var, typename Value, typename Expression, typename... context> 
 struct Let { 
     static constexpr bool val =
-        evaluate<Expression, Variable<Var, Value>, context...>::val; 
+        expr_evaluate<Expression, Variable<Var, Value>, context...>::val; 
 };
 
 ////////////////////
@@ -91,21 +109,21 @@ struct Let {
 #include <type_traits>
 
 template<VarID Var, typename... context>
-struct Lookup_evaluate { };
+struct Lookup_expr_evaluate { };
 
 template<VarID Var, VarID id, typename Value, template<VarID, typename> typename Variable, typename... context> 
-struct Lookup_evaluate<Var, Variable<id, Value>, context...> {
+struct Lookup_expr_evaluate<Var, Variable<id, Value>, context...> {
     static constexpr auto val = 
         Var == id ?
-        evaluate<Value, context...>::val :
-        Lookup_evaluate<Var, context...>::val;
+        expr_evaluate<Value, context...>::val :
+        Lookup_expr_evaluate<Var, context...>::val;
 };
 
 ////////////////////
 
 template <VarID Var, typename... context>
 struct Ref {
-    static constexpr auto val = Lookup_evaluate<Var, context...>::val;
+    static constexpr auto val = Lookup_expr_evaluate<Var, context...>::val;
 };
 
 ////////////////////
@@ -120,7 +138,7 @@ struct Invoke { };
 
 template < VarID id, typename Body, template <VarID, typename> typename Lambda, typename Param, typename... context>
 struct Invoke<Lambda<id, Body>, Param, context...> { 
-    static constexpr auto val = evaluate<Body, Variable<id, Param>, context...>::val;
+    static constexpr auto val = expr_evaluate<Body, Variable<id, Param>, context...>::val;
 };
 
 ////////////////////
@@ -129,7 +147,7 @@ template<typename... args> struct Sum{};
 
 
 constexpr VarID Var(const char *name) {
-    VarID returned = 1;
+    VarID returned = NO_VARIABLE + 1;
     
     int i = 0; 
     while(i < 6 && name[i] != 0) {
@@ -138,14 +156,14 @@ constexpr VarID Var(const char *name) {
             ('a' <= name[i] && name[i] <= 'z') ||
             ('A' <= name[i] && name[i] <= 'Z')
             )
-        ) returned = 0;
+        ) returned = NO_VARIABLE;
         
         i++;
     }
 
-    if(i < 1 || i > 6) returned = 0;
+    if(i < 1 || i > 6) returned = NO_VARIABLE;
     
-    if(returned != 0){
+    if(returned != NO_VARIABLE){
         int result = 0;
         int factor = 1;
         
@@ -180,7 +198,7 @@ class Fibin {
     
     template< typename T, typename U = Number, typename = typename std::enable_if_t<std::is_integral<U>::value > >
     static constexpr U eval() {
-        return evaluate<T, U>::val;
+        return expr_evaluate<T, U>::val;
     }
 };
 
