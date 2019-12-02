@@ -18,7 +18,7 @@ struct Fib_eval<1, T > {
 struct True {};
 struct False {};
 
-template<unsigned int N> struct Fibo {};
+template<unsigned int N> struct Fib {};
 
 template<typename T, typename... context > 
 struct Lit { };
@@ -34,7 +34,7 @@ struct Lit<False, context...> {
 };
 
 template<unsigned int U, typename... context, typename T> 
-struct Lit< Fibo<U>, T, context... > {
+struct Lit< Fib<U>, T, context... > {
     static constexpr auto val = Fib_eval<U, T>::val;
 };
 
@@ -129,7 +129,7 @@ template<typename... args> struct Sum{};
 
 
 constexpr VarID Var(const char *name) {
-    int returned = 0;
+    VarID returned = 1;
     
     int i = 0; 
     while(i < 6 && name[i] != 0) {
@@ -138,14 +138,14 @@ constexpr VarID Var(const char *name) {
             ('a' <= name[i] && name[i] <= 'z') ||
             ('A' <= name[i] && name[i] <= 'Z')
             )
-        )
-        returned = -1;
+        ) returned = 0;
+        
         i++;
     }
 
-    if(i < 1 || i > 6) returned = -1;
+    if(i < 1 || i > 6) returned = 0;
     
-    if(returned == 0){
+    if(returned != 0){
         int result = 0;
         int factor = 1;
         
@@ -173,21 +173,24 @@ template< typename Number >
 class Fibin {
     public:
     
+    template< typename T, typename U = Number, typename = typename std::enable_if_t<!std::is_integral<U>::value > >
     static void eval() {
-        std::cout << "Fibin doesn't support this type!\n";
+        std::cout << "Fibin doesn't support " << typeid(Number).name() << "!\n";
     }
     
-    template< typename T, typename = typename std::enable_if_t<std::is_integral<Number>::value > >
-    static constexpr Number eval() {
-        return evaluate<T, Number>::val;
+    template< typename T, typename U = Number, typename = typename std::enable_if_t<std::is_integral<U>::value > >
+    static constexpr U eval() {
+        return evaluate<T, U>::val;
     }
 };
+
 #include <stdio.h>
 
 int main() {
     
-    printf("%d\n", Fibin<unsigned int>::eval< Lit<Fibo<6> > > () );
-    
+    printf("%d\n", Fibin<unsigned int>::eval< Lit<Fib<1> > > () );
+    Fibin<char>::eval< Lit<Fib<3> > > ();
+    /*
     printf("%d\n", Fibin<unsigned int>::eval< 
     If< 
         If< 
@@ -198,7 +201,7 @@ int main() {
         Lit<Fibo<10>>, 
         Lit<Fibo<2>> 
     > 
-    >() );
+    >() );*/
 
     /*
     printf("%llu\n", Fibin<uint64_t>::eval<
