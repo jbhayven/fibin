@@ -20,8 +20,22 @@ struct Function { };
 
 template<typename T, typename... context> 
 struct Function<NO_VARIABLE, T, context...>{
-    static constexpr auto value = T::value;
-}
+    static constexpr auto val = T::value;
+};
+
+////////////////////
+
+template<typename... context> struct Get_numeric;
+
+template<typename T, typename... context> 
+struct Get_numeric<T, context...> {
+    using type = typename Get_numeric<context...>::type;
+};
+
+template<typename T>
+struct Get_numeric<T> {
+    using type = T;
+};
 
 ////////////////////
 
@@ -50,17 +64,35 @@ struct Lit { };
 
 template<typename... context> 
 struct Lit<True, context...> { 
-    using fun = Function<-1, 
+    using fun = 
+        Function<
+            NO_VARIABLE,
+            Value<bool, true>,
+            context...
+        >;
 };
 
 template<typename... context> 
 struct Lit<False, context...> { 
-    static constexpr bool val = false;
+    using fun = 
+        Function<
+            NO_VARIABLE,
+            Value<bool, false>,
+            context...
+        >;
 };
 
-template<unsigned int U, typename... context, typename T> 
-struct Lit< Fib<U>, T, context... > {
-    static constexpr auto val = Fib_eval<U, T>::val;
+template<unsigned int U, typename... context> 
+struct Lit< Fib<U>, context... > {
+    using fun = 
+        Function<
+            NO_VARIABLE,
+            Value<
+                typename Get_numeric<context...>::type,
+                Fib_eval<U, typename Get_numeric<context...>::type>::val
+            >,
+            context...
+        >;
 };
 
 ////////////////////
@@ -143,8 +175,63 @@ struct Invoke<Lambda<id, Body>, Param, context...> {
 
 ////////////////////
 
-template<typename... args> struct Sum{};
+template<typename Arg, typename... context> 
+struct Inc1 {
+    using fun = 
+        Function<
+            NO_VARIABLE, 
+            Value<
+                typename Get_numeric<context...>::type, 
+                expr_evaluate<Arg, context...>::val + 1
+            >,
+            context...
+        >;
+};
 
+template<typename Arg, typename... context> 
+struct Inc10 {
+    using fun = 
+        Function<
+            NO_VARIABLE, 
+            Value<
+                typename Get_numeric<context...>::type, 
+                expr_evaluate<Arg, context...>::val + 10
+            >,
+            context...
+        >;
+};
+
+////////////////////
+
+template<typename... Args> struct Sum;
+
+template<typename T, typename... Args>
+struct Sum<T, Args...> {
+    using fun = 
+        Function<
+            NO_VARIABLE, 
+            Value<
+                typename Get_numeric<Args...>::type, 
+                expr_evaluate<T, Args...>::val + Sum<Args...>::fun::val
+            >,
+            Args...
+        >;
+};
+
+template<typename T, VarID id, typename Val, typename... Args>
+struct Sum<T, Variable<id, Val>, Args...> {
+    using fun = 
+        Function<
+            NO_VARIABLE, 
+            Value<
+                typename Get_numeric<Args...>::type, 
+                expr_evaluate<T, Args...>::val
+            >,
+            Args...
+        >;
+};
+
+////////////////////
 
 constexpr VarID Var(const char *name) {
     VarID returned = NO_VARIABLE + 1;
@@ -205,10 +292,10 @@ class Fibin {
 #include <stdio.h>
 
 int main() {
-    
+    /*
     printf("%d\n", Fibin<unsigned int>::eval< Lit<Fib<1> > > () );
     Fibin<char>::eval< Lit<Fib<3> > > ();
-    /*
+    
     printf("%d\n", Fibin<unsigned int>::eval< 
     If< 
         If< 
