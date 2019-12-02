@@ -218,6 +218,19 @@ struct Sum<T, Args...> {
         >;
 };
 
+template<typename T, typename Number>
+struct Sum<T, Number> {
+    using fun = 
+        Function<
+            NO_VARIABLE, 
+            Value<
+                Number,
+                expr_evaluate<T, Number>::val
+            >,
+            Number
+        >;
+};
+
 template<typename T, VarID id, typename Val, typename... Args>
 struct Sum<T, Variable<id, Val>, Args...> {
     using fun = 
@@ -230,6 +243,7 @@ struct Sum<T, Variable<id, Val>, Args...> {
             Args...
         >;
 };
+
 
 ////////////////////
 
