@@ -110,6 +110,11 @@ struct expr_evaluate<T<i, Targs...>, context...> {
     static constexpr auto val = T<i, Targs..., context...>::val;
 };
 
+template<VarID id, typename Body, typename... context>
+struct evaluate<Function<id, Body, context...> {
+    using fun = evaluate_expr<Body, context...>::val;
+}
+
 ////////////////////
 
 template<typename Condition, typename IfTrue, typename IfFalse, typename... context> 
@@ -122,6 +127,16 @@ struct If {
 
 ////////////////////
 
+template<typename Function, typename new>
+struct enrich { };
+
+template<VarID id, typename Body, typename... context, template<VarID, typename> typename Variable>
+struct enrich<Function<id, Body, context...>,  Variable<id, Value>> {
+   using fun = Function<id, Body, Variable<id, Value>, context>;
+}
+
+///////////////////
+
 template<typename Left, typename Right, typename... context>
 struct Eq {
     static constexpr bool val = 
@@ -129,6 +144,11 @@ struct Eq {
 };
 
 ////////////////////
+
+template <VarID id, typename Value, typename T, typename... context> 
+struct Let() {
+    using fun = enrich<T::fun, Variable<id, Value>>;
+}
 
 template <VarID Var, typename Value, typename Expression, typename... context> 
 struct Let { 
@@ -161,17 +181,19 @@ struct Ref {
 ////////////////////
 
 template <VarID Var, typename Body, typename... context>
-struct Lambda { };
+struct Lambda { 
+    using fun = Function<id, Body, context...>;
+};
 
 ////////////////////
 
 template <typename Fun, typename Param, typename... context>
 struct Invoke { };
 
-template < VarID id, typename Body, template <VarID, typename> typename Lambda, typename Param, typename... context>
-struct Invoke<Lambda<id, Body>, Param, context...> { 
-    static constexpr auto val = expr_evaluate<Body, Variable<id, Param>, context...>::val;
-};
+template < VarID id, typename Body, typename Fun, typename... context>
+struct Invoke<> {
+    using fun = evaluate<enrich<Fun::fun, Variable<id, Body>>>::fun;
+}
 
 ////////////////////
 
@@ -306,21 +328,21 @@ class Fibin {
 #include <stdio.h>
 
 int main() {
-    /*
+   
     printf("%d\n", Fibin<unsigned int>::eval< Lit<Fib<1> > > () );
-    Fibin<char>::eval< Lit<Fib<3> > > ();
+    // Fibin<char>::eval< Lit<Fib<3> > > ();
     
-    printf("%d\n", Fibin<unsigned int>::eval< 
-    If< 
-        If< 
-            Lit<True>, 
-            Lit<False>,
-            Lit<True>
-        >, 
-        Lit<Fibo<10>>, 
-        Lit<Fibo<2>> 
-    > 
-    >() );*/
+    // printf("%d\n", Fibin<unsigned int>::eval< 
+    // If< 
+    //     If< 
+    //         Lit<True>, 
+    //         Lit<False>,
+    //         Lit<True>
+    //     >, 
+    //     Lit<Fib<10>>, 
+    //     Lit<Fib<2>> 
+    // > 
+    // >() );
 
     /*
     printf("%llu\n", Fibin<uint64_t>::eval<
