@@ -282,7 +282,7 @@ struct Sum<T, Variable<id, Val>, Args...> {
             NO_VARIABLE, 
             Value<
                 typename Get_numeric<Args...>::type, 
-                expr_evaluate<T, Args...>::fun::val
+                expr_evaluate<T, Variable<id, Val>, Args...>::fun::val
             >,
             Args...
         >;
@@ -402,7 +402,30 @@ int main() {
             Invoke<Ref<Var("f")>, Lit<Fib<0> > >
         >
     >());
-    
+    printf("%d\n", Fibin<int>::eval<
+        Let<
+            Var("const"),
+            Lit<Fib<1>>,
+            Let<
+                Var("f"),
+                Lambda<
+                    Var("x"),
+                    Sum<
+                        Ref<Var("const")>,
+                        Ref<Var("x")>
+                    >
+                >,
+                Let<
+                    Var("const"),
+                    Lit<Fib<3>>,
+                    Invoke<
+                        Ref<Var("f")>,
+                        Lit<Fib<0>>
+                    >
+                >
+            >
+        >
+    >());
     //printf("%d\n", Fibin<unsigned int>::eval< Lit<int> > () );
     
     //printf("%d\n", Fibin<unsigned int>::eval< Lit<True> >() );
