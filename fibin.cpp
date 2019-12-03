@@ -15,16 +15,6 @@ struct Value{
 
 ////////////////////
 
-template<VarID id, typename T, typename... context>
-struct Function { };
-
-template<typename T, typename... context> 
-struct Function<NO_VARIABLE, T, context...>{
-    static constexpr auto val = T::value;
-};
-
-////////////////////
-
 template<typename... context> struct Get_numeric;
 
 template<typename T, typename... context> 
@@ -35,6 +25,16 @@ struct Get_numeric<T, context...> {
 template<typename T>
 struct Get_numeric<T> {
     using type = T;
+};
+
+////////////////////
+
+template<VarID id, typename T, typename... context>
+struct Function { };
+
+template<typename T, typename... context> 
+struct Function<NO_VARIABLE, T, context...>{
+    static constexpr typename Get_numeric<context...>::type val = T::value;
 };
 
 ////////////////////
@@ -97,103 +97,125 @@ struct Lit< Fib<U>, context... > {
 
 ////////////////////
 
-template<typename T, typename... context>
-struct expr_evaluate {};
+template<typename Expression, typename... context> struct expr_evaluate;
 
-template< typename... Targs, template<typename...> typename T, typename... context >
-struct expr_evaluate<T<Targs...>, context...> {
-    static constexpr auto val = T<Targs..., context...>::val;
+template<typename... Args, template<typename...> typename Expression, typename... context >
+struct expr_evaluate<Expression<Args...>, context...> {
+    using fun = typename Expression<Args..., context...>::fun;
 };
 
-template< int i, typename... Targs, template<int, typename...> typename T, typename... context >
-struct expr_evaluate<T<i, Targs...>, context...> {
-    static constexpr auto val = T<i, Targs..., context...>::val;
+template< VarID id, typename... Args, template<VarID, typename...> typename Expression, typename... context >
+struct expr_evaluate<Expression<id, Args...>, context...> {
+    using fun = typename Expression<id, Args..., context...>::fun;
 };
+
+////////////////////
+
+template<typename T> struct evaluate;
 
 template<VarID id, typename Body, typename... context>
-struct evaluate<Function<id, Body, context...> {
-    using fun = evaluate_expr<Body, context...>::val;
-}
-
-////////////////////
-
-template<typename Condition, typename IfTrue, typename IfFalse, typename... context> 
-struct If {
-    static constexpr auto val = 
-        expr_evaluate <Condition, context...>::val ?
-        expr_evaluate <IfTrue, context...>::val :
-        expr_evaluate <IfFalse, context...>::val;
-};
-
-////////////////////
-
-template<typename Function, typename new>
-struct enrich { };
-
-template<VarID id, typename Body, typename... context, template<VarID, typename> typename Variable>
-struct enrich<Function<id, Body, context...>,  Variable<id, Value>> {
-   using fun = Function<id, Body, Variable<id, Value>, context>;
-}
-
-///////////////////
-
-template<typename Left, typename Right, typename... context>
-struct Eq {
-    static constexpr bool val = 
-        (expr_evaluate<Left, context...>::val == expr_evaluate<Right, context...>::val);
-};
-
-////////////////////
-
-template <VarID id, typename Value, typename T, typename... context> 
-struct Let() {
-    using fun = enrich<T::fun, Variable<id, Value>>;
-}
-
-template <VarID Var, typename Value, typename Expression, typename... context> 
-struct Let { 
-    static constexpr bool val =
-        expr_evaluate<Expression, Variable<Var, Value>, context...>::val; 
+struct evaluate<Function<id, Body, context...>> {
+    using fun = typename expr_evaluate <Body, context...>::fun;
 };
 
 ////////////////////
 
 #include <type_traits>
 
-template<VarID Var, typename... context>
-struct Lookup_expr_evaluate { };
+template<typename Condition, typename IfTrue, typename IfFalse, typename... context> 
+struct If {
+    using fun = typename
+        std::conditional <
+            expr_evaluate <Condition, context...>::fun::val,
+            typename expr_evaluate <IfTrue, context...>::fun,
+            typename expr_evaluate <IfFalse, context...>::fun
+        >::type;
+};
 
-template<VarID Var, VarID id, typename Value, template<VarID, typename> typename Variable, typename... context> 
-struct Lookup_expr_evaluate<Var, Variable<id, Value>, context...> {
-    static constexpr auto val = 
-        Var == id ?
-        expr_evaluate<Value, context...>::val :
-        Lookup_expr_evaluate<Var, context...>::val;
+////////////////////
+
+template<typename T, typename New>
+struct enrich { };
+
+template<VarID id, typename Body, typename... context, typename Value>
+struct enrich <Function<id, Body, context...>, Value> {
+    using fun = Function<id, Body, Variable<id, Value>, context...>;
+};
+
+template<VarID id, typename Body, typename... context, VarID newID, typename newValue>
+struct enrich<Function<id, Body, context...>,  Variable<newID, newValue>> {
+   using fun = Function<id, Body, Variable<newID, newValue>, context...>;
+};
+
+///////////////////
+
+template<typename Left, typename Right, typename... context>
+struct Eq {
+    using fun =
+        Function<
+            NO_VARIABLE, 
+            Value<
+                bool,
+                (expr_evaluate<Left, context...>::fun::val == expr_evaluate<Right, context...>::fun::val)
+            >,
+            context...
+        >;
+};
+
+////////////////////
+
+template <VarID id, typename Value, typename T, typename... context> 
+struct Let {
+    using fun = 
+        typename expr_evaluate<
+            T, 
+            Variable<
+                id, 
+                expr_evaluate<Value, context...>
+            >, context...
+        >::fun;
+};
+
+////////////////////
+
+template <VarID Var, typename... context> struct Lookup;
+
+template <VarID Var, typename T, typename... context>
+struct Lookup<Var, T, context...> {
+    using fun = typename Lookup<Var, context...>::fun;
+};
+
+template <VarID Var, typename T, typename... context>
+struct Lookup<Var, Variable<Var, T>, context...> {
+    using fun = typename T::fun;
 };
 
 ////////////////////
 
 template <VarID Var, typename... context>
 struct Ref {
-    static constexpr auto val = Lookup_expr_evaluate<Var, context...>::val;
+    using fun = typename Lookup<Var, context...>::fun;
 };
 
 ////////////////////
 
 template <VarID Var, typename Body, typename... context>
 struct Lambda { 
-    using fun = Function<id, Body, context...>;
+    using fun = Function<Var, Body, context...>;
 };
 
 ////////////////////
 
 template <typename Fun, typename Param, typename... context>
-struct Invoke { };
-
-template < VarID id, typename Body, typename Fun, typename... context>
-struct Invoke<> {
-    using fun = evaluate<enrich<Fun::fun, Variable<id, Body>>>::fun;
-}
+struct Invoke {
+    using fun =
+        typename evaluate< 
+            typename enrich< 
+                typename expr_evaluate<Fun, context...>::fun, 
+                expr_evaluate<Param, context...>
+            >::fun
+        >::fun;
+};
 
 ////////////////////
 
@@ -204,7 +226,7 @@ struct Inc1 {
             NO_VARIABLE, 
             Value<
                 typename Get_numeric<context...>::type, 
-                expr_evaluate<Arg, context...>::val + 1
+                expr_evaluate<Arg, context...>::fun::val + 1
             >,
             context...
         >;
@@ -217,7 +239,7 @@ struct Inc10 {
             NO_VARIABLE, 
             Value<
                 typename Get_numeric<context...>::type, 
-                expr_evaluate<Arg, context...>::val + 10
+                expr_evaluate<Arg, context...>::fun::val + 10
             >,
             context...
         >;
@@ -234,7 +256,7 @@ struct Sum<T, Args...> {
             NO_VARIABLE, 
             Value<
                 typename Get_numeric<Args...>::type, 
-                expr_evaluate<T, Args...>::val + Sum<Args...>::fun::val
+                expr_evaluate<T, Args...>::fun::val + Sum<Args...>::fun::val
             >,
             Args...
         >;
@@ -247,7 +269,7 @@ struct Sum<T, Number> {
             NO_VARIABLE, 
             Value<
                 Number,
-                expr_evaluate<T, Number>::val
+                expr_evaluate<T, Number>::fun::val
             >,
             Number
         >;
@@ -260,7 +282,7 @@ struct Sum<T, Variable<id, Val>, Args...> {
             NO_VARIABLE, 
             Value<
                 typename Get_numeric<Args...>::type, 
-                expr_evaluate<T, Args...>::val
+                expr_evaluate<T, Args...>::fun::val
             >,
             Args...
         >;
@@ -321,7 +343,7 @@ class Fibin {
     
     template< typename T, typename U = Number, typename = typename std::enable_if_t<std::is_integral<U>::value > >
     static constexpr U eval() {
-        return expr_evaluate<T, U>::val;
+        return expr_evaluate<T, U>::fun::val;
     }
 };
 
@@ -330,36 +352,36 @@ class Fibin {
 int main() {
    
     printf("%d\n", Fibin<unsigned int>::eval< Lit<Fib<1> > > () );
-    // Fibin<char>::eval< Lit<Fib<3> > > ();
+    Fibin<char>::eval< Lit<Fib<3> > > ();
     
-    // printf("%d\n", Fibin<unsigned int>::eval< 
-    // If< 
-    //     If< 
-    //         Lit<True>, 
-    //         Lit<False>,
-    //         Lit<True>
-    //     >, 
-    //     Lit<Fib<10>>, 
-    //     Lit<Fib<2>> 
-    // > 
-    // >() );
+    printf("%d\n", Fibin<unsigned int>::eval< 
+    If< 
+        If< 
+            Lit<True>, 
+            Lit<False>,
+            Lit<True>
+        >, 
+        Lit<Fib<10>>, 
+        Lit<Fib<2>> 
+    > 
+    >() );
 
-    /*
+    
     printf("%llu\n", Fibin<uint64_t>::eval<
         Invoke<
             Let<
                 Var("x"), 
-                Lit< Fibo<0> >, 
+                Lit< Fib<0> >, 
                 Lambda<
                     Var("x"), 
                     Ref<Var("x")>
                 >
             >, 
-            Lit< Fibo<1> >
+            Lit< Fib<1> >
             >
         >());
-        */
-    /*
+      
+    
     printf("%llu\n", Fibin<uint64_t>::eval<
         Let<
             Var("f"),
@@ -367,10 +389,19 @@ int main() {
                 Var("x"),
                 Ref<Var("x")>
             >,
-            Invoke<Ref<Var("f")>, Lit<Fibo<0> > >
+            Invoke<Ref<Var("f")>, Lit<Fib<0> > >
         >
     >());
-    */
+    printf("%d\n", Fibin<int>::eval<
+        Let<
+            Var("f"),
+            Lambda<
+                Var("x"),
+                Inc1<Ref<Var("x")>>
+            >,
+            Invoke<Ref<Var("f")>, Lit<Fib<0> > >
+        >
+    >());
     
     //printf("%d\n", Fibin<unsigned int>::eval< Lit<int> > () );
     
