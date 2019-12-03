@@ -367,7 +367,7 @@ int main() {
     >() );
 
     
-    printf("%llu\n", Fibin<uint64_t>::eval<
+    printf("%lu\n", Fibin<uint64_t>::eval<
         Invoke<
             Let<
                 Var("x"), 
@@ -382,7 +382,7 @@ int main() {
         >());
       
     
-    printf("%llu\n", Fibin<uint64_t>::eval<
+    printf("%lu\n", Fibin<uint64_t>::eval<
         Let<
             Var("f"),
             Lambda<
