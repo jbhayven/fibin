@@ -124,12 +124,14 @@ struct evaluate<Function<id, Body, context...>> {
 
 template<typename Condition, typename IfTrue, typename IfFalse, typename... context> 
 struct If {
-    using fun = typename
-        std::conditional <
+    using fun = typename expr_evaluate<
+        typename std::conditional <
             expr_evaluate <Condition, context...>::fun::val,
-            typename expr_evaluate <IfTrue, context...>::fun,
-            typename expr_evaluate <IfFalse, context...>::fun
-        >::type;
+            IfTrue, 
+            IfFalse
+        >::type,
+        context...
+    >::fun;
 };
 
 ////////////////////
