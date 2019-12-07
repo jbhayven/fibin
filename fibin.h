@@ -10,7 +10,8 @@ struct Variable { };
 
 template<typename T, T _value>
 struct Value{ 
-    static constexpr T value = _value;
+    using type = T;
+    static constexpr type value = _value;
 };
 
 ////////////////////
@@ -34,7 +35,7 @@ struct Function { };
 
 template<typename T, typename... context> 
 struct Function<NO_VARIABLE, T, context...>{
-    static constexpr typename Get_numeric<context...>::type val = T::value;
+    static constexpr typename T::type val = T::value;
 };
 
 ////////////////////
