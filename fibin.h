@@ -1,4 +1,5 @@
 #include <cstdint>
+#include <cassert>
 
 #define NO_VARIABLE 0
 using VarID = uint32_t;
@@ -36,6 +37,11 @@ struct Function { };
 template<typename T, typename... context> 
 struct Function<NO_VARIABLE, T, context...>{
     static constexpr typename T::type val = T::value;
+};
+
+template<bool _logical, typename... context> 
+struct Function<NO_VARIABLE, Value<bool, _logical>, context...>{
+    static constexpr bool logical = _logical;
 };
 
 ////////////////////
@@ -127,7 +133,7 @@ template<typename Condition, typename IfTrue, typename IfFalse, typename... cont
 struct If {
     using fun = typename expr_evaluate<
         typename std::conditional <
-            expr_evaluate <Condition, context...>::fun::val,
+            expr_evaluate <Condition, context...>::fun::logical,
             IfTrue, 
             IfFalse
         >::type,
@@ -179,6 +185,9 @@ struct Let {
         >::fun;
 };
 
+template<typename Value, typename T, typename... context> 
+struct Let<NO_VARIABLE, Value, T, context...>;
+
 ////////////////////
 
 template <VarID Var, typename... context> struct Lookup;
@@ -193,6 +202,9 @@ struct Lookup<Var, Variable<Var, T>, context...> {
     using fun = typename T::fun;
 };
 
+template<typename... context>
+struct Lookup<NO_VARIABLE, context...>;
+
 ////////////////////
 
 template <VarID Var, typename... context>
@@ -200,12 +212,18 @@ struct Ref {
     using fun = typename Lookup<Var, context...>::fun;
 };
 
+template<typename... context>
+struct Ref<NO_VARIABLE, context...>;
+
 ////////////////////
 
 template <VarID Var, typename Body, typename... context>
 struct Lambda { 
     using fun = Function<Var, Body, context...>;
 };
+
+template<typename Body, typename... context>
+struct Lambda<NO_VARIABLE, Body, context...>;
 
 ////////////////////
 
@@ -224,12 +242,15 @@ struct Invoke {
 
 template<typename Arg, typename... context> 
 struct Inc1 {
+    using numeric_ = typename Get_numeric<context...>::type;
     using fun = 
         Function<
             NO_VARIABLE, 
             Value<
-                typename Get_numeric<context...>::type, 
-                expr_evaluate<Arg, context...>::fun::val + Fib_eval<1, typename Get_numeric<context...>::type>::val
+                numeric_,
+                static_cast<numeric_>
+                    (expr_evaluate<Arg, context...>::fun::val + 
+                     Fib_eval<1, numeric_>::val)
             >,
             context...
         >;
@@ -237,12 +258,15 @@ struct Inc1 {
 
 template<typename Arg, typename... context> 
 struct Inc10 {
+    using numeric_ = typename Get_numeric<context...>::type;
     using fun = 
         Function<
             NO_VARIABLE, 
             Value<
-                typename Get_numeric<context...>::type, 
-                expr_evaluate<Arg, context...>::fun::val + Fib_eval<10, typename Get_numeric<context...>::type>::val
+                numeric_,
+                static_cast<numeric_>
+                    (expr_evaluate<Arg, context...>::fun::val + 
+                     Fib_eval<10, numeric_>::val)
             >,
             context...
         >;
@@ -254,12 +278,15 @@ template<typename... Args> struct Sum;
 
 template<typename T, typename... Args>
 struct Sum<T, Args...> {
+    using numeric_ = typename Get_numeric<Args...>::type;
     using fun = 
         Function<
             NO_VARIABLE, 
             Value<
-                typename Get_numeric<Args...>::type, 
-                expr_evaluate<T, Args...>::fun::val + Sum<Args...>::fun::val
+                numeric_,
+                static_cast<numeric_>
+                    (expr_evaluate<T, Args...>::fun::val + 
+                     Sum<Args...>::fun::val)
             >,
             Args...
         >;
@@ -309,7 +336,7 @@ constexpr VarID Var(const char *name) {
         i++;
     }
 
-    if(i < 1 || i > 6) returned = NO_VARIABLE;
+    if(i < 1 || i >= 6) returned = NO_VARIABLE;
     
     if(returned != NO_VARIABLE){
         VarID result = 0;
