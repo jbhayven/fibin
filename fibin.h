@@ -1,6 +1,9 @@
 #include <cstdint>
 #include <cassert>
 
+#include <typeinfo>
+#include <iostream>
+
 #define NO_VARIABLE 0
 using VarID = uint32_t;
 
@@ -104,25 +107,25 @@ struct Lit< Fib<U>, context... > {
 
 ////////////////////
 
-template<typename Expression, typename... context> struct expr_evaluate;
+template<typename Expression, typename... context> struct Expr_evaluate;
 
 template<typename... Args, template<typename...> typename Expression, typename... context >
-struct expr_evaluate<Expression<Args...>, context...> {
+struct Expr_evaluate<Expression<Args...>, context...> {
     using fun = typename Expression<Args..., context...>::fun;
 };
 
 template< VarID id, typename... Args, template<VarID, typename...> typename Expression, typename... context >
-struct expr_evaluate<Expression<id, Args...>, context...> {
+struct Expr_evaluate<Expression<id, Args...>, context...> {
     using fun = typename Expression<id, Args..., context...>::fun;
 };
 
 ////////////////////
 
-template<typename T> struct evaluate;
+template<typename T> struct Evaluate;
 
 template<VarID id, typename Body, typename... context>
-struct evaluate<Function<id, Body, context...>> {
-    using fun = typename expr_evaluate <Body, context...>::fun;
+struct Evaluate<Function<id, Body, context...>> {
+    using fun = typename Expr_evaluate <Body, context...>::fun;
 };
 
 ////////////////////
@@ -131,9 +134,9 @@ struct evaluate<Function<id, Body, context...>> {
 
 template<typename Condition, typename IfTrue, typename IfFalse, typename... context> 
 struct If {
-    using fun = typename expr_evaluate<
+    using fun = typename Expr_evaluate<
         typename std::conditional <
-            expr_evaluate <Condition, context...>::fun::logical,
+            Expr_evaluate <Condition, context...>::fun::logical,
             IfTrue, 
             IfFalse
         >::type,
@@ -165,7 +168,7 @@ struct Eq {
             NO_VARIABLE, 
             Value<
                 bool,
-                (expr_evaluate<Left, context...>::fun::val == expr_evaluate<Right, context...>::fun::val)
+                (Expr_evaluate<Left, context...>::fun::val == Expr_evaluate<Right, context...>::fun::val)
             >,
             context...
         >;
@@ -176,11 +179,11 @@ struct Eq {
 template <VarID id, typename Value, typename T, typename... context> 
 struct Let {
     using fun = 
-        typename expr_evaluate<
+        typename Expr_evaluate<
             T, 
             Variable<
                 id, 
-                expr_evaluate<Value, context...>
+                Expr_evaluate<Value, context...>
             >, context...
         >::fun;
 };
@@ -208,12 +211,7 @@ struct Lookup<NO_VARIABLE, context...>;
 ////////////////////
 
 template <VarID Var, typename... context>
-struct Ref {
-    using fun = typename Lookup<Var, context...>::fun;
-};
-
-template<typename... context>
-struct Ref<NO_VARIABLE, context...>;
+using Ref = Lookup<Var, context...>;
 
 ////////////////////
 
@@ -230,10 +228,10 @@ struct Lambda<NO_VARIABLE, Body, context...>;
 template <typename Fun, typename Param, typename... context>
 struct Invoke {
     using fun =
-        typename evaluate< 
+        typename Evaluate< 
             typename enrich< 
-                typename expr_evaluate<Fun, context...>::fun, 
-                expr_evaluate<Param, context...>
+                typename Expr_evaluate<Fun, context...>::fun, 
+                Expr_evaluate<Param, context...>
             >::fun
         >::fun;
 };
@@ -249,7 +247,7 @@ struct Inc1 {
             Value<
                 numeric_,
                 static_cast<numeric_>
-                    (expr_evaluate<Arg, context...>::fun::val + 
+                    (Expr_evaluate<Arg, context...>::fun::val + 
                      Fib_eval<1, numeric_>::val)
             >,
             context...
@@ -265,7 +263,7 @@ struct Inc10 {
             Value<
                 numeric_,
                 static_cast<numeric_>
-                    (expr_evaluate<Arg, context...>::fun::val + 
+                    (Expr_evaluate<Arg, context...>::fun::val + 
                      Fib_eval<10, numeric_>::val)
             >,
             context...
@@ -285,7 +283,7 @@ struct Sum<T, Args...> {
             Value<
                 numeric_,
                 static_cast<numeric_>
-                    (expr_evaluate<T, Args...>::fun::val + 
+                    (Expr_evaluate<T, Args...>::fun::val + 
                      Sum<Args...>::fun::val)
             >,
             Args...
@@ -299,7 +297,7 @@ struct Sum<T, Number> {
             NO_VARIABLE, 
             Value<
                 Number,
-                expr_evaluate<T, Number>::fun::val
+                Expr_evaluate<T, Number>::fun::val
             >,
             Number
         >;
@@ -312,7 +310,7 @@ struct Sum<T, Variable<id, Val>, Args...> {
             NO_VARIABLE, 
             Value<
                 typename Get_numeric<Args...>::type, 
-                expr_evaluate<T, Variable<id, Val>, Args...>::fun::val
+                Expr_evaluate<T, Variable<id, Val>, Args...>::fun::val
             >,
             Args...
         >;
@@ -359,9 +357,6 @@ constexpr VarID Var(const char *name) {
     return returned;
 }
 
-#include <typeinfo>
-#include <iostream>
-
 template< typename Number >
 class Fibin {
     public:
@@ -373,107 +368,6 @@ class Fibin {
     
     template< typename T, typename U = Number, typename = typename std::enable_if_t<std::is_integral<U>::value > >
     static constexpr U eval() {
-        return expr_evaluate<T, U>::fun::val;
+        return Expr_evaluate<T, U>::fun::val;
     }
 };
-
-/*
-#include <stdio.h>
-int main() {
-   
-    printf("%d\n", Fibin<unsigned int>::eval< Lit<Fib<1> > > () );
-    Fibin<char>::eval< Lit<Fib<3> > > ();
-    
-    printf("%d\n", Fibin<unsigned int>::eval< 
-    If< 
-        If< 
-            Lit<True>, 
-            Lit<False>,
-            Lit<True>
-        >, 
-        Lit<Fib<10>>, 
-        Lit<Fib<2>> 
-    > 
-    >() );
-
-    
-    printf("%lu\n", Fibin<uint64_t>::eval<
-        Invoke<
-            Let<
-                Var("x"), 
-                Lit< Fib<0> >, 
-                Lambda<
-                    Var("x"), 
-                    Ref<Var("x")>
-                >
-            >, 
-            Lit< Fib<1> >
-            >
-        >());
-      
-    
-    printf("%lu\n", Fibin<uint64_t>::eval<
-        Let<
-            Var("f"),
-            Lambda<
-                Var("x"),
-                Ref<Var("x")>
-            >,
-            Invoke<Ref<Var("f")>, Lit<Fib<0> > >
-        >
-    >());
-    printf("%d\n", Fibin<int>::eval<
-        Let<
-            Var("f"),
-            Lambda<
-                Var("x"),
-                Inc1<Ref<Var("x")>>
-            >,
-            Invoke<Ref<Var("f")>, Lit<Fib<0> > >
-        >
-    >());
-    printf("%d\n", Fibin<int>::eval<
-        Let<
-            Var("const"),
-            Lit<Fib<1>>,
-            Let<
-                Var("f"),
-                Lambda<
-                    Var("x"),
-                    Sum<
-                        Ref<Var("const")>,
-                        Ref<Var("x")>
-                    >
-                >,
-                Let<
-                    Var("const"),
-                    Lit<Fib<3>>,
-                    Invoke<
-                        Ref<Var("f")>,
-                        Lit<Fib<0>>
-                    >
-                >
-            >
-        >
-    >());
-    //printf("%d\n", Fibin<unsigned int>::eval< Lit<int> > () );
-    
-    //printf("%d\n", Fibin<unsigned int>::eval< Lit<True> >() );
-    
-    //Lit<int> a;
-    
-    return 0;
-}*/
-
-
-/*
-template<typename T> 
-class Fibin{
-    template<typename Expr, 
-             typename = typename std::enable_if<std::is_integral<T>>::type, T result>
-    constexpr T eval() {
-        return 
-    }
-    
-    void eval<
-};*/
