@@ -325,7 +325,7 @@ constexpr VarID Var(const char *name) {
     VarID returned = NO_VARIABLE + 1;
     
     int i = 0; 
-    while(i < 6 && name[i] != 0) {
+    while(i <= 6 && name[i] != 0) {
         if(!(
             ('0' <= name[i] && name[i] <= '9') || 
             ('a' <= name[i] && name[i] <= 'z') ||
@@ -336,7 +336,7 @@ constexpr VarID Var(const char *name) {
         i++;
     }
 
-    if(i < 1 || i >= 6) returned = NO_VARIABLE;
+    if(i < 1 || i > 6) returned = NO_VARIABLE;
     
     if(returned != NO_VARIABLE){
         VarID result = 0;
